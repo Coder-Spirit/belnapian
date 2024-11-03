@@ -1,13 +1,41 @@
+//! Belnapian is a library that provides basic types and operations for
+//! [Belnap's 4-valued logic](https://en.wikipedia.org/wiki/Four-valued_logic#Belnap).
+//!
+//! This library does not intend to be a full implementation of all the related
+//! formalisms and algorithms for Belnap's logic, but rather a small and simple
+//! building block.
+//!
+//! In addition to basic operations for Belnap's 4-valued logic, this library
+//! also provides:
+//! - A simple implementation of 3-valued logic operations (with the `Unknown`
+//!   value)
+//! - An extension of Belnap's 4-valued logic to a 15-valued logic (where we
+//!   have 11 "unknown" values).
+
 use std::ops;
 
 // Enums
 // -----------------------------------------------------------------------------
 
+/// See [Wikipedia :: Four-valued Logic :: Belnap](https://en.wikipedia.org/wiki/Four-valued_logic#Belnap)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Belnapian {
+    /// The `Neither` truth value is useful to identify propositions to which we
+    /// cannot assign any classical truth value. This often happens when the
+    /// proposition is not well-formed or when it is self-contradictory.
     Neither = 0,
     False = 1,
     True = 2,
+
+    /// We can understand `Both` as a superposition of `True` and `False`. A natural
+    /// case where it makes sense to assign this truth value is when we have a
+    /// proposition that, given our current set of axioms, could be either `True` or
+    /// `False` (remember
+    /// [Gödel's incompleteness theorems](https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems)).
+    ///
+    /// In other words, in case that a proposition (or its negation) is independent
+    /// of our axioms and could be added as a new axiom without causing any
+    /// inconsistency, then we can assign the `Both` truth value to it.
     Both = 3,
 }
 
@@ -18,6 +46,9 @@ pub enum TernaryTruth {
     Unknown = 0b00110100,
 }
 
+/// The [`TruthValuesSet`] enum represents power sets of the set of 4 truth
+/// values in Belnap's 4-valued logic. It's a superset of the [`Unknown`] enum.
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TruthValuesSet {
     ____ = 0b00000100, // Empty set, if we reach it, then there is an inconsistency somewhere
@@ -38,6 +69,14 @@ pub enum TruthValuesSet {
     NFTB = 0b01111100,
 }
 
+/// The [`Unknown`] enum represents the 11 possible ways in which we can have
+/// ignorance about the truth value of a proposition. It's a subset of the
+/// [`TruthValuesSet`] enum.
+///
+/// From the set of 4 truth values, we can compute its power set, which has 16
+/// elements, and then remove the empty set and every set with only one element,
+/// leaving us with 11.
+#[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unknown {
     NF__ = 0b00011100,
@@ -53,8 +92,9 @@ pub enum Unknown {
     NFTB = 0b01111100,
 }
 
+/// The [`EBelnapian`] enum represents a "union" of the [`Belnapian`] and
+/// [`Unknown`] enums.
 #[derive(Clone, Copy, Debug)]
-
 pub enum EBelnapian {
     Known(Belnapian),
     Unknown(Unknown),
