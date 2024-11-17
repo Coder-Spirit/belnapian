@@ -1,16 +1,112 @@
+//! # Belnapian
 //! Belnapian is a library that provides basic types and operations for
+//! [multiple-valued logics](https://en.wikipedia.org/wiki/Many-valued_logic).
+//!
+//! ## 3-Valued Logic
+//!
+//! For [3-valued logics](https://en.wikipedia.org/wiki/Three-valued_logic), we
+//! provide the `TernaryTruth` type:
+//! ```rust
+//! pub enum TernaryTruth {
+//!     False,
+//!     True,
+//!     Unknown,
+//! }
+//! ```
+//!
+//! Belnapian also provides the basic operations `and`, `or`, `not` and `xor`,
+//! but it does not provide "implication" connectives, as they differ between
+//! different 3-valued logic systems such as Kleene logic, RM3 logic, or
+//! [Łukasiewicz logic](https://en.wikipedia.org/wiki/%C5%81ukasiewicz_logic).
+//!
+//! My personal recommendation on using these "truth values" is to treat them not as
+//! the actual truth values attributed to a proposition, but to treat them as our
+//! subjective knowledge of them (hence the term "Unknown", which implies the need
+//! of a sentient being not-knowing something).
+//!
+//! ## 4-Valued Belnap Logic
+//!
+//! Belnapian, unsurprisingly, also provides basic support for
 //! [Belnap's 4-valued logic](https://en.wikipedia.org/wiki/Four-valued_logic#Belnap).
 //!
-//! This library does not intend to be a full implementation of all the related
-//! formalisms and algorithms for Belnap's logic, but rather a small and simple
-//! building block.
+//! As in the case of support for 3-valued logics, this library only provides basic
+//! building blocks, and not any kind of fully fledged inference system.
 //!
-//! In addition to basic operations for Belnap's 4-valued logic, this library
-//! also provides:
-//! - A simple implementation of 3-valued logic operations (with the `Unknown`
-//!   value)
-//! - An extension of Belnap's 4-valued logic to a 15-valued logic (where we
-//!   have 11 "unknown" values).
+//! ```rust
+//! pub enum Belnapian {
+//!     // The `Neither` truth value is useful to identify propositions to
+//!     // which we cannot assign any classical truth value. This often
+//!     // happens when the proposition is not well-formed or when it is
+//!     // self-contradictory.
+//!     Neither,
+//!
+//!     False,
+//!     True,
+//!
+//!     // We can understand `Both` as a superposition of `True` and
+//!     // `False`. A natural case where it makes sense to assign this
+//!     // truth value is when we have a proposition that, given our
+//!     // current set of axioms, could be either `True` or `False`
+//!     // (remember Gödel's incompleteness theorems).
+//!     //
+//!     // In other words, in case that a proposition (or its negation) is
+//!     // independent of our axioms and could be added as a new axiom
+//!     // without causing any inconsistency, then we can assign the
+//!     // `Both` truth value to it.
+//!     Both,
+//! }
+//! ```
+//!
+//! In constrast to the case of the 3-valued logics with an `Unknown` value, the
+//! `Both` and `Neither` truth values aren't necessarily tied to our subjective
+//! knowledge of the truth value for a given proposition.
+//!
+//! Assuming that we operate with a well-known set of axioms, we could use them to
+//! talk about the "real" underlying truth value for a given proposition.
+//!
+//! ## 15-Valued Extended Belnap Logic (with Unknown values)
+//!
+//! The most important feature of the Belnapian library is its support for a
+//! 15-valued logic combining Belnap's 4-valued logic with subjective unknown
+//! values.
+//!
+//! ```rust
+//! pub enum EBelnapian {
+//!     Known(Belnapian),
+//!     Unknown(Unknown),
+//! }
+//!
+//! // The enum variants' names are ugly, but once we know what they
+//! // represent, it becomes much easier to use & understand them.
+//! pub enum Unknown {
+//!     NF__, // Could be Neither or False
+//!     N_T_,
+//!     _FT_, // Could be False or True
+//!     NFT_,
+//!     N__B,
+//!     _F_B,
+//!     NF_B,
+//!     __TB, // Could be True or Both
+//!     N_TB,
+//!     _FTB,
+//!     NFTB,
+//! }
+//! ```
+//!
+//! Once we have more than 2 "objective" truth values, our unknowns can represent
+//! more than one set of possible values (in 3-valued logic, the `Unknown` value
+//! represents the set `{False, True}`).
+//!
+//! Our "unknown values" represent the sets present in the power set of
+//! `{Neither, False, True, Both}`, except for the null set `ø` and the singletons
+//! `{Neither}`, `{False}`, `{True}`, and `{Both}` (that is, `2⁴-5 = 16-5 = 11`
+//! values).
+//!
+//! The amazing aspect of these "unknown values" is that we can still apply classic
+//! logic operations to them and obtain useful results. This library relies on
+//! pre-computed tables to save you a ton of time when dealing with uncertainty in
+//! logic calculations.
+
 
 use std::ops;
 
@@ -23,9 +119,9 @@ pub enum Belnapian {
     /// The `Neither` truth value is useful to identify propositions to which we
     /// cannot assign any classical truth value. This often happens when the
     /// proposition is not well-formed or when it is self-contradictory.
-    Neither = 0,
-    False = 1,
-    True = 2,
+    Neither,
+    False,
+    True,
 
     /// We can understand `Both` as a superposition of `True` and `False`. A natural
     /// case where it makes sense to assign this truth value is when we have a
@@ -36,42 +132,42 @@ pub enum Belnapian {
     /// In other words, in case that a proposition (or its negation) is independent
     /// of our axioms and could be added as a new axiom without causing any
     /// inconsistency, then we can assign the `Both` truth value to it.
-    Both = 3,
+    Both,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum TernaryTruth {
-    False = 1,
-    True = 2,
-    Unknown = 0b00110100,
+    False,
+    True,
+    Unknown,
 }
 
-/// The [`TruthValuesSet`] enum represents power sets of the set of 4 truth
+/// The [`TruthValuesPowerSet`] enum represents power sets of the set of 4 truth
 /// values in Belnap's 4-valued logic. It's a superset of the [`Unknown`] enum.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TruthValuesSet {
-    ____ = 0b00000100, // Empty set, if we reach it, then there is an inconsistency somewhere
-    N___ = 0b00001100, // Known
-    _F__ = 0b00010100, // Known
-    NF__ = 0b00011100,
-    __T_ = 0b00100100, // Known
-    N_T_ = 0b00101100,
-    _FT_ = 0b00110100,
-    NFT_ = 0b00111100,
-    ___B = 0b01000100, // Known
-    N__B = 0b01001100,
-    _F_B = 0b01010100,
-    NF_B = 0b01011100,
-    __TB = 0b01100100,
-    N_TB = 0b01101100,
-    _FTB = 0b01110100,
-    NFTB = 0b01111100,
+pub enum TruthValuesPowerSet {
+    ____, // Empty set, if we reach it, then there is an inconsistency somewhere
+    N___, // Known
+    _F__, // Known
+    NF__,
+    __T_, // Known
+    N_T_,
+    _FT_,
+    NFT_,
+    ___B, // Known
+    N__B,
+    _F_B,
+    NF_B,
+    __TB,
+    N_TB,
+    _FTB,
+    NFTB,
 }
 
 /// The [`Unknown`] enum represents the 11 possible ways in which we can have
 /// ignorance about the truth value of a proposition. It's a subset of the
-/// [`TruthValuesSet`] enum.
+/// [`TruthValuesPowerSet`] enum.
 ///
 /// From the set of 4 truth values, we can compute its power set, which has 16
 /// elements, and then remove the empty set and every set with only one element,
@@ -79,32 +175,52 @@ pub enum TruthValuesSet {
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unknown {
-    NF__ = 0b00011100,
-    N_T_ = 0b00101100,
-    _FT_ = 0b00110100,
-    NFT_ = 0b00111100,
-    N__B = 0b01001100,
-    _F_B = 0b01010100,
-    NF_B = 0b01011100,
-    __TB = 0b01100100,
-    N_TB = 0b01101100,
-    _FTB = 0b01110100,
-    NFTB = 0b01111100,
+    NF__,
+    N_T_,
+    _FT_,
+    NFT_,
+    N__B,
+    _F_B,
+    NF_B,
+    __TB,
+    N_TB,
+    _FTB,
+    NFTB,
 }
 
 /// The [`EBelnapian`] enum represents a "union" of the [`Belnapian`] and
 /// [`Unknown`] enums.
 #[derive(Clone, Copy, Debug)]
+#[repr(u8)]
 pub enum EBelnapian {
     Known(Belnapian),
     Unknown(Unknown),
 }
 
+// Traits
+// -----------------------------------------------------------------------------
+
+pub trait TruthValue {}
+
+pub trait AndOp: TruthValue {
+    fn and(self, other: Self) -> Self;
+}
+
+pub trait OrOp: TruthValue {
+    fn or(self, other: Self) -> Self;
+}
+
+pub trait XorOp: TruthValue {
+    fn xor(self, other: Self) -> Self;
+}
+
 // Belnapian Impls
 // -----------------------------------------------------------------------------
 
-impl Belnapian {
-    pub fn and(self, other: Self) -> Self {
+impl TruthValue for Belnapian {}
+
+impl AndOp for Belnapian {
+    fn and(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (Belnapian::False, _) => Belnapian::False,
@@ -118,8 +234,10 @@ impl Belnapian {
             (Belnapian::True, Belnapian::True) => Belnapian::True,
         }
     }
+}
 
-    pub fn or(self, other: Self) -> Self {
+impl OrOp for Belnapian {
+    fn or(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (Belnapian::True, _) => Belnapian::True,
@@ -133,7 +251,36 @@ impl Belnapian {
             (Belnapian::False, Belnapian::False) => Belnapian::False,
         }
     }
+}
 
+impl XorOp for Belnapian {
+    /// The XOR operation cannot be generalized to Belnap's 4-valued logic
+    /// without introducing new assumptions, because the propositions
+    /// - `(A OR B) AND ¬(A AND B)`
+    /// - `(a AND ¬b) OR (¬a AND b)`
+    ///
+    /// which are equivalent in classical logic, have different truth tables in
+    /// Belnap's 4-valued logic.
+    /// 
+    /// For this implementation, we chose the proposition
+    /// - `(a AND ¬b) OR (¬a AND b)`
+    /// 
+    /// as it's closer to the natural language interpretation of XOR.
+    fn xor(self, other: Self) -> Self {
+        match (self, other) {
+            (Belnapian::Neither, Belnapian::Both) => Belnapian::False,
+            (Belnapian::Both, Belnapian::Neither) => Belnapian::False,
+            (Belnapian::Neither, _) => Belnapian::Neither,
+            (_, Belnapian::Neither) => Belnapian::Neither,
+            (Belnapian::Both, _) => Belnapian::Both,
+            (_, Belnapian::Both) => Belnapian::Both,
+            (a, b) if a == b => Belnapian::False,
+            _ => Belnapian::True,
+        }
+    }
+}
+
+impl Belnapian {
     pub fn superposition(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
@@ -181,15 +328,10 @@ impl ops::Not for Belnapian {
 // TernaryTruth Impls
 // -----------------------------------------------------------------------------
 
-impl TernaryTruth {
-    pub fn is_unknown(self) -> bool {
-        match self {
-            TernaryTruth::Unknown => true,
-            _ => false,
-        }
-    }
+impl TruthValue for TernaryTruth {}
 
-    pub fn and(self, other: Self) -> Self {
+impl AndOp for TernaryTruth {
+    fn and(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (TernaryTruth::False, _) => TernaryTruth::False,
@@ -199,8 +341,10 @@ impl TernaryTruth {
             (TernaryTruth::True, TernaryTruth::True) => TernaryTruth::True,
         }
     }
+}
 
-    pub fn or(self, other: Self) -> Self {
+impl OrOp for TernaryTruth {
+    fn or(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (TernaryTruth::True, _) => TernaryTruth::True,
@@ -208,6 +352,28 @@ impl TernaryTruth {
             (TernaryTruth::Unknown, _) => TernaryTruth::Unknown,
             (_, TernaryTruth::Unknown) => TernaryTruth::Unknown,
             (TernaryTruth::False, TernaryTruth::False) => TernaryTruth::False,
+        }
+    }
+}
+
+impl XorOp for TernaryTruth {
+    fn xor(self, other: Self) -> Self {
+        match (self, other) {
+            // DO NOT REORDER THESE MATCHES
+            (TernaryTruth::Unknown, _) => TernaryTruth::Unknown,
+            (_, TernaryTruth::Unknown) => TernaryTruth::Unknown,
+            (TernaryTruth::True, TernaryTruth::True) => TernaryTruth::False,
+            (TernaryTruth::False, TernaryTruth::False) => TernaryTruth::False,
+            _ => TernaryTruth::True,
+        }
+    }
+}
+
+impl TernaryTruth {
+    pub fn is_unknown(self) -> bool {
+        match self {
+            TernaryTruth::Unknown => true,
+            _ => false,
         }
     }
 
@@ -1023,15 +1189,10 @@ fn eq_ebelnapian_unknown(a: Belnapian, b: Unknown) -> EBelnapian {
 // EBelnapian Impls
 // -----------------------------------------------------------------------------
 
-impl EBelnapian {
-    pub fn is_unknown(self) -> bool {
-        match self {
-            EBelnapian::Unknown(_) => true,
-            _ => false,
-        }
-    }
+impl TruthValue for EBelnapian {}
 
-    pub fn and(self, other: Self) -> Self {
+impl AndOp for EBelnapian {
+    fn and(self, other: Self) -> Self {
         match (self, other) {
             (EBelnapian::Known(a), EBelnapian::Known(b)) => EBelnapian::Known(a.and(b)),
             (EBelnapian::Unknown(a), EBelnapian::Unknown(b)) => a.and(b),
@@ -1039,13 +1200,35 @@ impl EBelnapian {
             (EBelnapian::Unknown(a), EBelnapian::Known(b)) => and_ebelnapian_unknown(b, a),
         }
     }
+}
 
-    pub fn or(self, other: Self) -> Self {
+impl OrOp for EBelnapian {
+    fn or(self, other: Self) -> Self {
         match (self, other) {
             (EBelnapian::Known(a), EBelnapian::Known(b)) => EBelnapian::Known(a.or(b)),
             (EBelnapian::Unknown(a), EBelnapian::Unknown(b)) => a.or(b),
             (EBelnapian::Known(a), EBelnapian::Unknown(b)) => or_ebelnapian_unknown(a, b),
             (EBelnapian::Unknown(a), EBelnapian::Known(b)) => or_ebelnapian_unknown(b, a),
+        }
+    }
+}
+
+impl ops::Not for EBelnapian {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        match self {
+            EBelnapian::Known(value) => EBelnapian::Known(!value),
+            EBelnapian::Unknown(value) => EBelnapian::Unknown(!value),
+        }
+    }
+}
+
+impl EBelnapian {
+    pub fn is_unknown(self) -> bool {
+        match self {
+            EBelnapian::Unknown(_) => true,
+            _ => false,
         }
     }
 
@@ -1081,19 +1264,9 @@ impl EBelnapian {
     }
 }
 
-impl ops::Not for EBelnapian {
-    type Output = Self;
-
-    fn not(self) -> Self {
-        match self {
-            EBelnapian::Known(value) => EBelnapian::Known(!value),
-            EBelnapian::Unknown(value) => EBelnapian::Unknown(!value),
-        }
-    }
-}
-
 // Conversions
 // -----------------------------------------------------------------------------
+// Bool:
 
 impl From<bool> for Belnapian {
     fn from(value: bool) -> Self {
@@ -1137,6 +1310,30 @@ impl TryFrom<TernaryTruth> for bool {
     }
 }
 
+impl From<bool> for EBelnapian {
+    fn from(value: bool) -> Self {
+        match value {
+            false => EBelnapian::Known(Belnapian::False),
+            true => EBelnapian::Known(Belnapian::True),
+        }
+    }
+}
+
+impl TryFrom<EBelnapian> for bool {
+    type Error = ();
+
+    fn try_from(value: EBelnapian) -> Result<bool, Self::Error> {
+        match value {
+            EBelnapian::Known(Belnapian::False) => Ok(false),
+            EBelnapian::Known(Belnapian::True) => Ok(true),
+            _ => Err(()), // TODO: Improve?
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// TernaryTruth:
+
 impl TryFrom<Belnapian> for TernaryTruth {
     type Error = ();
 
@@ -1161,50 +1358,12 @@ impl TryFrom<TernaryTruth> for Belnapian {
     }
 }
 
-impl From<bool> for EBelnapian {
-    fn from(value: bool) -> Self {
-        match value {
-            false => EBelnapian::Known(Belnapian::False),
-            true => EBelnapian::Known(Belnapian::True),
-        }
-    }
-}
-
-impl TryFrom<EBelnapian> for bool {
-    type Error = ();
-
-    fn try_from(value: EBelnapian) -> Result<bool, Self::Error> {
-        match value {
-            EBelnapian::Known(Belnapian::False) => Ok(false),
-            EBelnapian::Known(Belnapian::True) => Ok(true),
-            _ => Err(()), // TODO: Improve?
-        }
-    }
-}
-
 impl From<TernaryTruth> for EBelnapian {
     fn from(value: TernaryTruth) -> Self {
         match value {
             TernaryTruth::False => EBelnapian::Known(Belnapian::False),
             TernaryTruth::True => EBelnapian::Known(Belnapian::True),
             TernaryTruth::Unknown => EBelnapian::Unknown(Unknown::_FT_),
-        }
-    }
-}
-
-impl From<Belnapian> for EBelnapian {
-    fn from(value: Belnapian) -> Self {
-        EBelnapian::Known(value)
-    }
-}
-
-impl TryFrom<EBelnapian> for Belnapian {
-    type Error = ();
-
-    fn try_from(value: EBelnapian) -> Result<Belnapian, Self::Error> {
-        match value {
-            EBelnapian::Known(value) => Ok(value),
-            _ => Err(()), // TODO: Improve?
         }
     }
 }
@@ -1217,23 +1376,6 @@ impl TryFrom<EBelnapian> for TernaryTruth {
             EBelnapian::Known(Belnapian::False) => Ok(TernaryTruth::False),
             EBelnapian::Known(Belnapian::True) => Ok(TernaryTruth::True),
             EBelnapian::Unknown(Unknown::_FT_) => Ok(TernaryTruth::Unknown),
-            _ => Err(()), // TODO: Improve?
-        }
-    }
-}
-
-impl From<Unknown> for EBelnapian {
-    fn from(value: Unknown) -> Self {
-        EBelnapian::Unknown(value)
-    }
-}
-
-impl TryFrom<EBelnapian> for Unknown {
-    type Error = ();
-
-    fn try_from(value: EBelnapian) -> Result<Unknown, Self::Error> {
-        match value {
-            EBelnapian::Unknown(value) => Ok(value),
             _ => Err(()), // TODO: Improve?
         }
     }
@@ -1261,328 +1403,81 @@ impl TryFrom<TernaryTruth> for Unknown {
     }
 }
 
-impl From<Unknown> for TruthValuesSet {
-    fn from(value: Unknown) -> Self {
-        match value {
-            Unknown::NF__ => TruthValuesSet::NF__,
-            Unknown::N_T_ => TruthValuesSet::N_T_,
-            Unknown::_FT_ => TruthValuesSet::_FT_,
-            Unknown::NFT_ => TruthValuesSet::NFT_,
-            Unknown::N__B => TruthValuesSet::N__B,
-            Unknown::_F_B => TruthValuesSet::_F_B,
-            Unknown::NF_B => TruthValuesSet::NF_B,
-            Unknown::__TB => TruthValuesSet::__TB,
-            Unknown::N_TB => TruthValuesSet::N_TB,
-            Unknown::_FTB => TruthValuesSet::_FTB,
-            Unknown::NFTB => TruthValuesSet::NFTB,
-        }
+// -----------------------------------------------------------------------------
+// Belnapian:
+
+impl From<Belnapian> for EBelnapian {
+    fn from(value: Belnapian) -> Self {
+        EBelnapian::Known(value)
     }
 }
 
-impl TryFrom<TruthValuesSet> for Unknown {
+impl TryFrom<EBelnapian> for Belnapian {
     type Error = ();
 
-    fn try_from(value: TruthValuesSet) -> Result<Unknown, Self::Error> {
+    fn try_from(value: EBelnapian) -> Result<Belnapian, Self::Error> {
         match value {
-            TruthValuesSet::NF__ => Ok(Unknown::NF__),
-            TruthValuesSet::N_T_ => Ok(Unknown::N_T_),
-            TruthValuesSet::_FT_ => Ok(Unknown::_FT_),
-            TruthValuesSet::NFT_ => Ok(Unknown::NFT_),
-            TruthValuesSet::N__B => Ok(Unknown::N__B),
-            TruthValuesSet::_F_B => Ok(Unknown::_F_B),
-            TruthValuesSet::NF_B => Ok(Unknown::NF_B),
-            TruthValuesSet::__TB => Ok(Unknown::__TB),
-            TruthValuesSet::N_TB => Ok(Unknown::N_TB),
-            TruthValuesSet::_FTB => Ok(Unknown::_FTB),
-            TruthValuesSet::NFTB => Ok(Unknown::NFTB),
+            EBelnapian::Known(value) => Ok(value),
             _ => Err(()), // TODO: Improve?
         }
     }
 }
 
-// Tests
 // -----------------------------------------------------------------------------
+// Unknown:
 
-#[cfg(test)]
-mod belnapian_tests {
-    use super::*;
-
-    #[test]
-    fn test_and() {
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.and(Belnapian::Neither)
-        );
-        assert_eq!(Belnapian::False, Belnapian::Neither.and(Belnapian::False));
-        assert_eq!(Belnapian::Neither, Belnapian::Neither.and(Belnapian::True));
-        assert_eq!(Belnapian::False, Belnapian::Neither.and(Belnapian::Both));
-
-        assert_eq!(Belnapian::False, Belnapian::False.and(Belnapian::Neither));
-        assert_eq!(Belnapian::False, Belnapian::False.and(Belnapian::False));
-        assert_eq!(Belnapian::False, Belnapian::False.and(Belnapian::True));
-        assert_eq!(Belnapian::False, Belnapian::False.and(Belnapian::Both));
-
-        assert_eq!(Belnapian::Neither, Belnapian::True.and(Belnapian::Neither));
-        assert_eq!(Belnapian::False, Belnapian::True.and(Belnapian::False));
-        assert_eq!(Belnapian::True, Belnapian::True.and(Belnapian::True));
-        assert_eq!(Belnapian::Both, Belnapian::True.and(Belnapian::Both));
-
-        assert_eq!(Belnapian::False, Belnapian::Both.and(Belnapian::Neither));
-        assert_eq!(Belnapian::False, Belnapian::Both.and(Belnapian::False));
-        assert_eq!(Belnapian::Both, Belnapian::Both.and(Belnapian::True));
-        assert_eq!(Belnapian::Both, Belnapian::Both.and(Belnapian::Both));
-    }
-
-    #[test]
-    fn test_or() {
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.or(Belnapian::Neither)
-        );
-        assert_eq!(Belnapian::Neither, Belnapian::Neither.or(Belnapian::False));
-        assert_eq!(Belnapian::True, Belnapian::Neither.or(Belnapian::True));
-        assert_eq!(Belnapian::True, Belnapian::Neither.or(Belnapian::Both));
-
-        assert_eq!(Belnapian::Neither, Belnapian::False.or(Belnapian::Neither));
-        assert_eq!(Belnapian::False, Belnapian::False.or(Belnapian::False));
-        assert_eq!(Belnapian::True, Belnapian::False.or(Belnapian::True));
-        assert_eq!(Belnapian::Both, Belnapian::False.or(Belnapian::Both));
-
-        assert_eq!(Belnapian::True, Belnapian::True.or(Belnapian::Neither));
-        assert_eq!(Belnapian::True, Belnapian::True.or(Belnapian::False));
-        assert_eq!(Belnapian::True, Belnapian::True.or(Belnapian::True));
-        assert_eq!(Belnapian::True, Belnapian::True.or(Belnapian::Both));
-
-        assert_eq!(Belnapian::True, Belnapian::Both.or(Belnapian::Neither));
-        assert_eq!(Belnapian::Both, Belnapian::Both.or(Belnapian::False));
-        assert_eq!(Belnapian::True, Belnapian::Both.or(Belnapian::True));
-        assert_eq!(Belnapian::Both, Belnapian::Both.or(Belnapian::Both));
-    }
-
-    #[test]
-    fn test_not() {
-        assert_eq!(Belnapian::Neither, !Belnapian::Neither);
-        assert_eq!(Belnapian::True, !Belnapian::False);
-        assert_eq!(Belnapian::False, !Belnapian::True);
-        assert_eq!(Belnapian::Both, !Belnapian::Both);
-    }
-
-    #[test]
-    fn test_superposition() {
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.superposition(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::Neither.superposition(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::Neither.superposition(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Neither.superposition(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::False.superposition(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::False.superposition(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::False.superposition(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::False.superposition(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::True.superposition(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::True.superposition(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::True.superposition(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::True.superposition(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Both.superposition(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Both.superposition(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Both.superposition(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Both.superposition(Belnapian::Both)
-        );
-    }
-
-    #[test]
-    fn test_annihilation() {
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.annihilation(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.annihilation(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.annihilation(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Neither.annihilation(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::False.annihilation(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::False.annihilation(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::False.annihilation(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::False.annihilation(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::True.annihilation(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::True.annihilation(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::True.annihilation(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::True.annihilation(Belnapian::Both)
-        );
-
-        assert_eq!(
-            Belnapian::Neither,
-            Belnapian::Both.annihilation(Belnapian::Neither)
-        );
-        assert_eq!(
-            Belnapian::False,
-            Belnapian::Both.annihilation(Belnapian::False)
-        );
-        assert_eq!(
-            Belnapian::True,
-            Belnapian::Both.annihilation(Belnapian::True)
-        );
-        assert_eq!(
-            Belnapian::Both,
-            Belnapian::Both.annihilation(Belnapian::Both)
-        );
-    }
-
-    #[test]
-    fn test_bool_conversions() {
-        assert_eq!(Belnapian::False, Belnapian::from(false));
-        assert_eq!(Belnapian::True, Belnapian::from(true));
-
-        assert_eq!(Belnapian::False, false.into());
-        assert_eq!(Belnapian::True, true.into());
-
-        assert_eq!(Ok(false), Belnapian::False.try_into());
-        assert_eq!(Ok(true), Belnapian::True.try_into());
+impl From<Unknown> for EBelnapian {
+    fn from(value: Unknown) -> Self {
+        EBelnapian::Unknown(value)
     }
 }
 
-#[cfg(test)]
-mod ternary_truth_tests {
-    use super::*;
+impl TryFrom<EBelnapian> for Unknown {
+    type Error = ();
 
-    #[test]
-    fn test_and() {
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::False).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::True).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::Unknown).try_into());
-
-        assert_eq!(Ok(false), TernaryTruth::True.and(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.and(TernaryTruth::True).try_into());
-        assert!(TernaryTruth::True.and(TernaryTruth::Unknown).is_unknown());
-
-        assert_eq!(Ok(false), TernaryTruth::Unknown.and(TernaryTruth::False).try_into());
-        assert!(TernaryTruth::Unknown.and(TernaryTruth::True).is_unknown());
-        assert!(TernaryTruth::Unknown.and(TernaryTruth::Unknown).is_unknown());
-    }
-
-    #[test]
-    fn test_or() {
-        assert_eq!(Ok(false), TernaryTruth::False.or(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::False.or(TernaryTruth::True).try_into());
-        assert!(TernaryTruth::False.or(TernaryTruth::Unknown).is_unknown());
-
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::True).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::Unknown).try_into());
-
-        assert!(TernaryTruth::Unknown.or(TernaryTruth::False).is_unknown());
-        assert_eq!(Ok(true), TernaryTruth::Unknown.or(TernaryTruth::True).try_into());
-        assert!(TernaryTruth::Unknown.or(TernaryTruth::Unknown).is_unknown());
-    }
-
-    #[test]
-    fn test_eq() {
-        assert_eq!(Ok(true), TernaryTruth::False.eq(TernaryTruth::False).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.eq(TernaryTruth::True).try_into());
-        assert!(TernaryTruth::False.eq(TernaryTruth::Unknown).is_unknown());
-
-        assert_eq!(Ok(false), TernaryTruth::True.eq(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.eq(TernaryTruth::True).try_into());
-        assert!(TernaryTruth::True.eq(TernaryTruth::Unknown).is_unknown());
-
-        assert!(TernaryTruth::Unknown.eq(TernaryTruth::False).is_unknown());
-        assert!(TernaryTruth::Unknown.eq(TernaryTruth::True).is_unknown());
-        assert!(TernaryTruth::Unknown.eq(TernaryTruth::Unknown).is_unknown());
+    fn try_from(value: EBelnapian) -> Result<Unknown, Self::Error> {
+        match value {
+            EBelnapian::Unknown(value) => Ok(value),
+            _ => Err(()), // TODO: Improve?
+        }
     }
 }
 
-#[cfg(test)]
-mod truth_values_set_test {
-    // use super::*;
+impl From<Unknown> for TruthValuesPowerSet {
+    fn from(value: Unknown) -> Self {
+        match value {
+            Unknown::NF__ => TruthValuesPowerSet::NF__,
+            Unknown::N_T_ => TruthValuesPowerSet::N_T_,
+            Unknown::_FT_ => TruthValuesPowerSet::_FT_,
+            Unknown::NFT_ => TruthValuesPowerSet::NFT_,
+            Unknown::N__B => TruthValuesPowerSet::N__B,
+            Unknown::_F_B => TruthValuesPowerSet::_F_B,
+            Unknown::NF_B => TruthValuesPowerSet::NF_B,
+            Unknown::__TB => TruthValuesPowerSet::__TB,
+            Unknown::N_TB => TruthValuesPowerSet::N_TB,
+            Unknown::_FTB => TruthValuesPowerSet::_FTB,
+            Unknown::NFTB => TruthValuesPowerSet::NFTB,
+        }
+    }
 }
 
-#[cfg(test)]
-mod unknown_test {
-    // use super::*;
-}
+impl TryFrom<TruthValuesPowerSet> for Unknown {
+    type Error = ();
 
-#[cfg(test)]
-mod ebelnapian_tests {
-    // use super::*;
+    fn try_from(value: TruthValuesPowerSet) -> Result<Unknown, Self::Error> {
+        match value {
+            TruthValuesPowerSet::NF__ => Ok(Unknown::NF__),
+            TruthValuesPowerSet::N_T_ => Ok(Unknown::N_T_),
+            TruthValuesPowerSet::_FT_ => Ok(Unknown::_FT_),
+            TruthValuesPowerSet::NFT_ => Ok(Unknown::NFT_),
+            TruthValuesPowerSet::N__B => Ok(Unknown::N__B),
+            TruthValuesPowerSet::_F_B => Ok(Unknown::_F_B),
+            TruthValuesPowerSet::NF_B => Ok(Unknown::NF_B),
+            TruthValuesPowerSet::__TB => Ok(Unknown::__TB),
+            TruthValuesPowerSet::N_TB => Ok(Unknown::N_TB),
+            TruthValuesPowerSet::_FTB => Ok(Unknown::_FTB),
+            TruthValuesPowerSet::NFTB => Ok(Unknown::NFTB),
+            _ => Err(()), // TODO: Improve?
+        }
+    }
 }

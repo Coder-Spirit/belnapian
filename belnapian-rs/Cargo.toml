@@ -1,6 +1,6 @@
 [package]
 name = "belnapian"
-version = "0.1.0"
+version = "0.2.0"
 
 description = "Belnap's 4-valued logic basic building blocks in Rust"
 license = "MIT"
