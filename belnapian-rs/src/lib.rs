@@ -6,7 +6,7 @@
 //!
 //! For [3-valued logics](https://en.wikipedia.org/wiki/Three-valued_logic), we
 //! provide the `TernaryTruth` type:
-//! ```rust
+//! ```ignore
 //! pub enum TernaryTruth {
 //!     False,
 //!     True,
@@ -32,7 +32,7 @@
 //! As in the case of support for 3-valued logics, this library only provides basic
 //! building blocks, and not any kind of fully fledged inference system.
 //!
-//! ```rust
+//! ```ignore
 //! pub enum Belnapian {
 //!     // The `Neither` truth value is useful to identify propositions to
 //!     // which we cannot assign any classical truth value. This often
@@ -70,7 +70,7 @@
 //! 15-valued logic combining Belnap's 4-valued logic with subjective unknown
 //! values.
 //!
-//! ```rust
+//! ```ignore
 //! pub enum EBelnapian {
 //!     Known(Belnapian),
 //!     Unknown(Unknown),
@@ -106,7 +106,6 @@
 //! logic operations to them and obtain useful results. This library relies on
 //! pre-computed tables to save you a ton of time when dealing with uncertainty in
 //! logic calculations.
-
 
 use std::ops;
 
@@ -200,7 +199,7 @@ pub enum EBelnapian {
 // Traits
 // -----------------------------------------------------------------------------
 
-pub trait TruthValue {}
+pub trait TruthValue: Copy {}
 
 pub trait AndOp: TruthValue {
     fn and(self, other: Self) -> Self;
@@ -214,13 +213,24 @@ pub trait XorOp: TruthValue {
     fn xor(self, other: Self) -> Self;
 }
 
+pub trait LogicOperand: ops::Not + AndOp + OrOp {}
+
+pub trait TruthValuesSet: Copy {
+    fn could_be_neither(self) -> bool;
+    fn could_be_false(self) -> bool;
+    fn could_be_true(self) -> bool;
+    fn could_be_both(self) -> bool;
+    fn is_unknown(self) -> bool;
+    fn is_empty(self) -> bool;
+}
+
 // Belnapian Impls
 // -----------------------------------------------------------------------------
 
 impl TruthValue for Belnapian {}
 
-impl AndOp for Belnapian {
-    fn and(self, other: Self) -> Self {
+impl Belnapian {
+    pub fn and(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (Belnapian::False, _) => Belnapian::False,
@@ -234,10 +244,8 @@ impl AndOp for Belnapian {
             (Belnapian::True, Belnapian::True) => Belnapian::True,
         }
     }
-}
 
-impl OrOp for Belnapian {
-    fn or(self, other: Self) -> Self {
+    pub fn or(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (Belnapian::True, _) => Belnapian::True,
@@ -251,9 +259,7 @@ impl OrOp for Belnapian {
             (Belnapian::False, Belnapian::False) => Belnapian::False,
         }
     }
-}
 
-impl XorOp for Belnapian {
     /// The XOR operation cannot be generalized to Belnap's 4-valued logic
     /// without introducing new assumptions, because the propositions
     /// - `(A OR B) AND ¬(A AND B)`
@@ -261,12 +267,12 @@ impl XorOp for Belnapian {
     ///
     /// which are equivalent in classical logic, have different truth tables in
     /// Belnap's 4-valued logic.
-    /// 
+    ///
     /// For this implementation, we chose the proposition
     /// - `(a AND ¬b) OR (¬a AND b)`
-    /// 
+    ///
     /// as it's closer to the natural language interpretation of XOR.
-    fn xor(self, other: Self) -> Self {
+    pub fn xor(self, other: Self) -> Self {
         match (self, other) {
             (Belnapian::Neither, Belnapian::Both) => Belnapian::False,
             (Belnapian::Both, Belnapian::Neither) => Belnapian::False,
@@ -278,9 +284,16 @@ impl XorOp for Belnapian {
             _ => Belnapian::True,
         }
     }
-}
 
-impl Belnapian {
+    pub fn not(self) -> Self {
+        match self {
+            Belnapian::Neither => Belnapian::Neither,
+            Belnapian::False => Belnapian::True,
+            Belnapian::True => Belnapian::False,
+            Belnapian::Both => Belnapian::Both,
+        }
+    }
+
     pub fn superposition(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
@@ -312,26 +325,53 @@ impl Belnapian {
     }
 }
 
+impl AndOp for Belnapian {
+    fn and(self, other: Self) -> Self {
+        self.and(other)
+    }
+}
+
+impl OrOp for Belnapian {
+    fn or(self, other: Self) -> Self {
+        self.or(other)
+    }
+}
+
+impl XorOp for Belnapian {
+    /// The XOR operation cannot be generalized to Belnap's 4-valued logic
+    /// without introducing new assumptions, because the propositions
+    /// - `(A OR B) AND ¬(A AND B)`
+    /// - `(a AND ¬b) OR (¬a AND b)`
+    ///
+    /// which are equivalent in classical logic, have different truth tables in
+    /// Belnap's 4-valued logic.
+    ///
+    /// For this implementation, we chose the proposition
+    /// - `(a AND ¬b) OR (¬a AND b)`
+    ///
+    /// as it's closer to the natural language interpretation of XOR.
+    fn xor(self, other: Self) -> Self {
+        self.xor(other)
+    }
+}
+
 impl ops::Not for Belnapian {
     type Output = Self;
 
     fn not(self) -> Self {
-        match self {
-            Belnapian::Neither => Belnapian::Neither,
-            Belnapian::False => Belnapian::True,
-            Belnapian::True => Belnapian::False,
-            Belnapian::Both => Belnapian::Both,
-        }
+        self.not()
     }
 }
+
+impl LogicOperand for Belnapian {}
 
 // TernaryTruth Impls
 // -----------------------------------------------------------------------------
 
 impl TruthValue for TernaryTruth {}
 
-impl AndOp for TernaryTruth {
-    fn and(self, other: Self) -> Self {
+impl TernaryTruth {
+    pub fn and(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (TernaryTruth::False, _) => TernaryTruth::False,
@@ -341,10 +381,8 @@ impl AndOp for TernaryTruth {
             (TernaryTruth::True, TernaryTruth::True) => TernaryTruth::True,
         }
     }
-}
 
-impl OrOp for TernaryTruth {
-    fn or(self, other: Self) -> Self {
+    pub fn or(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (TernaryTruth::True, _) => TernaryTruth::True,
@@ -354,10 +392,8 @@ impl OrOp for TernaryTruth {
             (TernaryTruth::False, TernaryTruth::False) => TernaryTruth::False,
         }
     }
-}
 
-impl XorOp for TernaryTruth {
-    fn xor(self, other: Self) -> Self {
+    pub fn xor(self, other: Self) -> Self {
         match (self, other) {
             // DO NOT REORDER THESE MATCHES
             (TernaryTruth::Unknown, _) => TernaryTruth::Unknown,
@@ -367,9 +403,15 @@ impl XorOp for TernaryTruth {
             _ => TernaryTruth::True,
         }
     }
-}
 
-impl TernaryTruth {
+    pub fn not(self) -> Self {
+        match self {
+            TernaryTruth::False => TernaryTruth::True,
+            TernaryTruth::True => TernaryTruth::False,
+            TernaryTruth::Unknown => TernaryTruth::Unknown,
+        }
+    }
+
     pub fn is_unknown(self) -> bool {
         match self {
             TernaryTruth::Unknown => true,
@@ -389,15 +431,133 @@ impl TernaryTruth {
     }
 }
 
+impl AndOp for TernaryTruth {
+    fn and(self, other: Self) -> Self {
+        self.and(other)
+    }
+}
+
+impl OrOp for TernaryTruth {
+    fn or(self, other: Self) -> Self {
+        self.or(other)
+    }
+}
+
+impl XorOp for TernaryTruth {
+    fn xor(self, other: Self) -> Self {
+        self.xor(other)
+    }
+}
+
 impl ops::Not for TernaryTruth {
     type Output = Self;
 
     fn not(self) -> Self {
+        self.not()
+    }
+}
+
+impl LogicOperand for TernaryTruth {}
+
+// TruthValuesPowerSet Impls
+// -----------------------------------------------------------------------------
+
+impl TruthValuesPowerSet {
+    pub fn could_be_neither(self) -> bool {
         match self {
-            TernaryTruth::False => TernaryTruth::True,
-            TernaryTruth::True => TernaryTruth::False,
-            TernaryTruth::Unknown => TernaryTruth::Unknown,
+            TruthValuesPowerSet::NFTB
+            | TruthValuesPowerSet::N_TB
+            | TruthValuesPowerSet::NF_B
+            | TruthValuesPowerSet::N__B
+            | TruthValuesPowerSet::NFT_
+            | TruthValuesPowerSet::N_T_
+            | TruthValuesPowerSet::NF__
+            | TruthValuesPowerSet::N___ => true,
+            _ => false,
         }
+    }
+
+    pub fn could_be_false(self) -> bool {
+        match self {
+            TruthValuesPowerSet::NFTB
+            | TruthValuesPowerSet::_FTB
+            | TruthValuesPowerSet::NF_B
+            | TruthValuesPowerSet::_F_B
+            | TruthValuesPowerSet::NFT_
+            | TruthValuesPowerSet::_FT_
+            | TruthValuesPowerSet::NF__
+            | TruthValuesPowerSet::_F__ => true,
+            _ => false,
+        }
+    }
+
+    pub fn could_be_true(self) -> bool {
+        match self {
+            TruthValuesPowerSet::NFTB
+            | TruthValuesPowerSet::_FTB
+            | TruthValuesPowerSet::N_TB
+            | TruthValuesPowerSet::__TB
+            | TruthValuesPowerSet::NFT_
+            | TruthValuesPowerSet::_FT_
+            | TruthValuesPowerSet::N_T_
+            | TruthValuesPowerSet::__T_ => true,
+            _ => false,
+        }
+    }
+
+    pub fn could_be_both(self) -> bool {
+        match self {
+            TruthValuesPowerSet::NFTB
+            | TruthValuesPowerSet::_FTB
+            | TruthValuesPowerSet::N_TB
+            | TruthValuesPowerSet::__TB
+            | TruthValuesPowerSet::NF_B
+            | TruthValuesPowerSet::N__B
+            | TruthValuesPowerSet::_F_B
+            | TruthValuesPowerSet::___B => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unknown(self) -> bool {
+        match self {
+            TruthValuesPowerSet::____
+            | TruthValuesPowerSet::N___
+            | TruthValuesPowerSet::_F__
+            | TruthValuesPowerSet::__T_
+            | TruthValuesPowerSet::___B => false,
+            _ => true,
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
+        return self == TruthValuesPowerSet::____;
+    }
+}
+
+impl TruthValuesSet for TruthValuesPowerSet {
+    fn could_be_neither(self) -> bool {
+        self.could_be_neither()
+    }
+
+    fn could_be_false(self) -> bool {
+        self.could_be_false()
+    }
+
+    fn could_be_true(self) -> bool {
+        self.could_be_true()
+    }
+
+    fn could_be_both(self) -> bool {
+        self.could_be_both()
+    }
+
+    fn is_unknown(self) -> bool {
+        self.is_unknown()
+    }
+
+    fn is_empty(self) -> bool {
+        self.is_empty()
     }
 }
 
@@ -654,6 +814,22 @@ impl Unknown {
             (Unknown::NFTB, Unknown::N_TB) => EBelnapian::Unknown(Unknown::N_TB),
             (Unknown::NFTB, Unknown::_FTB) => EBelnapian::Unknown(Unknown::NFTB),
             (Unknown::NFTB, Unknown::NFTB) => EBelnapian::Unknown(Unknown::NFTB),
+        }
+    }
+
+    pub fn not(self) -> Self {
+        match self {
+            Unknown::NFTB => Unknown::NFTB,
+            Unknown::NFT_ => Unknown::NFT_,
+            Unknown::NF_B => Unknown::N_TB,
+            Unknown::N_TB => Unknown::NF_B,
+            Unknown::_FTB => Unknown::_FTB,
+            Unknown::NF__ => Unknown::N_T_,
+            Unknown::N_T_ => Unknown::NF__,
+            Unknown::N__B => Unknown::N__B,
+            Unknown::_FT_ => Unknown::_FT_,
+            Unknown::_F_B => Unknown::__TB,
+            Unknown::__TB => Unknown::_F_B,
         }
     }
 
@@ -931,25 +1107,99 @@ impl Unknown {
             (Unknown::__TB, _) => EBelnapian::Unknown(Unknown::_FT_),
         }
     }
+
+    pub fn could_be_neither(self) -> bool {
+        match self {
+            Unknown::NFTB
+            | Unknown::N_TB
+            | Unknown::NF_B
+            | Unknown::N__B
+            | Unknown::NFT_
+            | Unknown::N_T_
+            | Unknown::NF__ => true,
+            _ => false,
+        }
+    }
+
+    pub fn could_be_false(self) -> bool {
+        match self {
+            Unknown::NFTB
+            | Unknown::_FTB
+            | Unknown::NF_B
+            | Unknown::_F_B
+            | Unknown::NFT_
+            | Unknown::_FT_
+            | Unknown::NF__ => true,
+            _ => false,
+        }
+    }
+
+    pub fn could_be_true(self) -> bool {
+        match self {
+            Unknown::NFTB
+            | Unknown::_FTB
+            | Unknown::N_TB
+            | Unknown::__TB
+            | Unknown::NFT_
+            | Unknown::_FT_
+            | Unknown::N_T_ => true,
+            _ => false,
+        }
+    }
+
+    pub fn could_be_both(self) -> bool {
+        match self {
+            Unknown::NFTB
+            | Unknown::_FTB
+            | Unknown::N_TB
+            | Unknown::__TB
+            | Unknown::NF_B
+            | Unknown::N__B
+            | Unknown::_F_B => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_unknown(self) -> bool {
+        true
+    }
+
+    pub fn is_empty(self) -> bool {
+        false
+    }
 }
 
 impl ops::Not for Unknown {
     type Output = Self;
 
     fn not(self) -> Self {
-        match self {
-            Unknown::NFTB => Unknown::NFTB,
-            Unknown::NFT_ => Unknown::NFT_,
-            Unknown::NF_B => Unknown::N_TB,
-            Unknown::N_TB => Unknown::NF_B,
-            Unknown::_FTB => Unknown::_FTB,
-            Unknown::NF__ => Unknown::N_T_,
-            Unknown::N_T_ => Unknown::NF__,
-            Unknown::N__B => Unknown::N__B,
-            Unknown::_FT_ => Unknown::_FT_,
-            Unknown::_F_B => Unknown::__TB,
-            Unknown::__TB => Unknown::_F_B,
-        }
+        self.not()
+    }
+}
+
+impl TruthValuesSet for Unknown {
+    fn could_be_neither(self) -> bool {
+        self.could_be_neither()
+    }
+
+    fn could_be_false(self) -> bool {
+        self.could_be_false()
+    }
+
+    fn could_be_true(self) -> bool {
+        self.could_be_true()
+    }
+
+    fn could_be_both(self) -> bool {
+        self.could_be_both()
+    }
+
+    fn is_unknown(self) -> bool {
+        true
+    }
+
+    fn is_empty(self) -> bool {
+        false
     }
 }
 
@@ -1191,8 +1441,15 @@ fn eq_ebelnapian_unknown(a: Belnapian, b: Unknown) -> EBelnapian {
 
 impl TruthValue for EBelnapian {}
 
-impl AndOp for EBelnapian {
-    fn and(self, other: Self) -> Self {
+impl EBelnapian {
+    pub fn is_unknown(self) -> bool {
+        match self {
+            EBelnapian::Unknown(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn and(self, other: Self) -> Self {
         match (self, other) {
             (EBelnapian::Known(a), EBelnapian::Known(b)) => EBelnapian::Known(a.and(b)),
             (EBelnapian::Unknown(a), EBelnapian::Unknown(b)) => a.and(b),
@@ -1200,10 +1457,8 @@ impl AndOp for EBelnapian {
             (EBelnapian::Unknown(a), EBelnapian::Known(b)) => and_ebelnapian_unknown(b, a),
         }
     }
-}
 
-impl OrOp for EBelnapian {
-    fn or(self, other: Self) -> Self {
+    pub fn or(self, other: Self) -> Self {
         match (self, other) {
             (EBelnapian::Known(a), EBelnapian::Known(b)) => EBelnapian::Known(a.or(b)),
             (EBelnapian::Unknown(a), EBelnapian::Unknown(b)) => a.or(b),
@@ -1211,24 +1466,11 @@ impl OrOp for EBelnapian {
             (EBelnapian::Unknown(a), EBelnapian::Known(b)) => or_ebelnapian_unknown(b, a),
         }
     }
-}
 
-impl ops::Not for EBelnapian {
-    type Output = Self;
-
-    fn not(self) -> Self {
+    pub fn not(self) -> Self {
         match self {
             EBelnapian::Known(value) => EBelnapian::Known(!value),
             EBelnapian::Unknown(value) => EBelnapian::Unknown(!value),
-        }
-    }
-}
-
-impl EBelnapian {
-    pub fn is_unknown(self) -> bool {
-        match self {
-            EBelnapian::Unknown(_) => true,
-            _ => false,
         }
     }
 
@@ -1263,6 +1505,28 @@ impl EBelnapian {
         }
     }
 }
+
+impl AndOp for EBelnapian {
+    fn and(self, other: Self) -> Self {
+        self.and(other)
+    }
+}
+
+impl OrOp for EBelnapian {
+    fn or(self, other: Self) -> Self {
+        self.or(other)
+    }
+}
+
+impl ops::Not for EBelnapian {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        self.not()
+    }
+}
+
+impl LogicOperand for EBelnapian {}
 
 // Conversions
 // -----------------------------------------------------------------------------

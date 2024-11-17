@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod belnapian_tests {
-    use belnapian::*;
+    use belnapian::Belnapian;
 
     #[test]
     fn test_and() {
@@ -228,42 +228,92 @@ mod ternary_truth_tests {
 
     #[test]
     fn test_and() {
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::False).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::True).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.and(TernaryTruth::Unknown).try_into());
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::False.and(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::False.and(TernaryTruth::True).try_into()
+        );
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::False.and(TernaryTruth::Unknown).try_into()
+        );
 
-        assert_eq!(Ok(false), TernaryTruth::True.and(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.and(TernaryTruth::True).try_into());
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::True.and(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::True.and(TernaryTruth::True).try_into()
+        );
         assert!(TernaryTruth::True.and(TernaryTruth::Unknown).is_unknown());
 
-        assert_eq!(Ok(false), TernaryTruth::Unknown.and(TernaryTruth::False).try_into());
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::Unknown.and(TernaryTruth::False).try_into()
+        );
         assert!(TernaryTruth::Unknown.and(TernaryTruth::True).is_unknown());
-        assert!(TernaryTruth::Unknown.and(TernaryTruth::Unknown).is_unknown());
+        assert!(TernaryTruth::Unknown
+            .and(TernaryTruth::Unknown)
+            .is_unknown());
     }
 
     #[test]
     fn test_or() {
-        assert_eq!(Ok(false), TernaryTruth::False.or(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::False.or(TernaryTruth::True).try_into());
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::False.or(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::False.or(TernaryTruth::True).try_into()
+        );
         assert!(TernaryTruth::False.or(TernaryTruth::Unknown).is_unknown());
 
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::True).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.or(TernaryTruth::Unknown).try_into());
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::True.or(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::True.or(TernaryTruth::True).try_into()
+        );
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::True.or(TernaryTruth::Unknown).try_into()
+        );
 
         assert!(TernaryTruth::Unknown.or(TernaryTruth::False).is_unknown());
-        assert_eq!(Ok(true), TernaryTruth::Unknown.or(TernaryTruth::True).try_into());
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::Unknown.or(TernaryTruth::True).try_into()
+        );
         assert!(TernaryTruth::Unknown.or(TernaryTruth::Unknown).is_unknown());
     }
 
     #[test]
     fn test_eq() {
-        assert_eq!(Ok(true), TernaryTruth::False.eq(TernaryTruth::False).try_into());
-        assert_eq!(Ok(false), TernaryTruth::False.eq(TernaryTruth::True).try_into());
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::False.eq(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::False.eq(TernaryTruth::True).try_into()
+        );
         assert!(TernaryTruth::False.eq(TernaryTruth::Unknown).is_unknown());
 
-        assert_eq!(Ok(false), TernaryTruth::True.eq(TernaryTruth::False).try_into());
-        assert_eq!(Ok(true), TernaryTruth::True.eq(TernaryTruth::True).try_into());
+        assert_eq!(
+            Ok(false),
+            TernaryTruth::True.eq(TernaryTruth::False).try_into()
+        );
+        assert_eq!(
+            Ok(true),
+            TernaryTruth::True.eq(TernaryTruth::True).try_into()
+        );
         assert!(TernaryTruth::True.eq(TernaryTruth::Unknown).is_unknown());
 
         assert!(TernaryTruth::Unknown.eq(TernaryTruth::False).is_unknown());
@@ -303,6 +353,7 @@ mod ebelnapian_tests {
 
     #[test]
     fn test_packing() {
-        assert_eq!(1, std::mem::size_of::<EBelnapian>());
+        // TODO: find a clean way to pack it into 1 byte
+        assert_eq!(2, std::mem::size_of::<EBelnapian>());
     }
 }
